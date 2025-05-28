@@ -1,25 +1,6 @@
-// import React from 'react';
-// import { Container, TextField, Button, Typography, Box } from '@mui/material';
-
-// const CreateNewTask = () => {
-//   return (
-//     <h1>CreateNewTask</h1>
-//     // <Container sx={{ mt: 4 }}>
-//     //   <Typography variant="h4">Add New Reminder</Typography>
-//     //   <TextField fullWidth label="Start Time" type="time" variant="outlined" margin="normal" />
-//     //   <TextField fullWidth label="End Time" type="time" variant="outlined" margin="normal" />
-//     //   <TextField fullWidth label="Task Name" variant="outlined" margin="normal" />
-//     //   <TextField fullWidth label="Task Subject" variant="outlined" margin="normal" />
-//     //   <TextField select fullWidth label="Task Type" variant="outlined" margin="normal">
-//     //     {/* Map through task types with emojis here */}
-//     //   </TextField>
-//     //   <Button variant="contained" sx={{ mt: 2 }}>Save Task</Button>
-//     // </Container>
-//   );
-// };
-
-// export default CreateNewTask;
 import React, { useState } from 'react';
+import { useSelector } from 'react-redux'; // הוספת import
+
 import {
   Box,
   Card,
@@ -31,16 +12,12 @@ import {
   AppBar,
   Toolbar,
   IconButton,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   Grid,
-  Chip,
   Paper,
   Fade,
-  Divider,
 } from '@mui/material';
+import { useLocation } from 'react-router-dom';
+
 import {
   ArrowBack,
   Save,
@@ -52,12 +29,20 @@ import {
 } from '@mui/icons-material';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import axios from 'axios';
 
 const CreateTask = ({ onNavigate, selectedDate, isRTL }) => {
+  const useremail = useSelector((state) => state.user.useremail); // קבלת email מהסלייס
+  const token = useSelector((state) => state.user.token); // קבלת הטוקן מה-slice
+
+  const location = useLocation();
+  const { formattedDate } = location.state || {}; 
+
   const [taskData, setTaskData] = useState({
+    taskName: '',
+
     startTime: '',
     endTime: '',
-    taskName: '',
     taskSubject: '',
     taskType: '',
     reminderMethod: '',
@@ -92,9 +77,31 @@ const CreateTask = ({ onNavigate, selectedDate, isRTL }) => {
     });
   };
 
-  const handleSaveTask = () => {
-    // Mock save - navigate back to calendar
-    onNavigate('calendar');
+  const handleSaveTask = async () => {
+    const dataToSend = {
+      userEmail: useremail,
+      name: taskData.taskName,
+      date: formattedDate,
+      startTime: taskData.startTime,
+      endTime: taskData.endTime,
+      issueTask: taskData.taskSubject,
+      typeTask: taskData.taskType,
+      wayOfActing: taskData.reminderMethod,
+    };
+    
+
+    try {
+      debugger
+      const response = await axios.post('http://localhost:8080/tasks/createTask', dataToSend, {
+        
+        headers: {
+          'Authorization': `Bearer ${token}` // שליחת הטוקן בכותרת
+        }
+      });
+      onNavigate('calendar');
+    } catch (error) {
+      console.error('Error saving task:', error);
+    }
   };
 
   const quillModules = {
@@ -109,7 +116,6 @@ const CreateTask = ({ onNavigate, selectedDate, isRTL }) => {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      {/* App Bar */}
       <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' }}>
         <Toolbar>
           <IconButton

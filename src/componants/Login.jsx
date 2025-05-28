@@ -50,6 +50,7 @@ const Login = () => {
   };
 
   const handleSubmit = async () => {
+    debugger
     console.log(formData);
     if (!isLogin) {
       // SIGN UP
@@ -60,40 +61,81 @@ const Login = () => {
       };
   
       try {
+        debugger
         const response = await axios.post('http://localhost:8080/users/register', dataToSend);
-        dispatch(setUserData({ username: formData.username, useremail: response.data.email }));
-        console.log('הרשמה הצליחה:', response.data);
-        navigate('/CalendarComponent', { state: { username: response.data.username, useremail: response.data.email } });
+        dispatch(setUserData({ 
+          username: response.data.username,
+          useremail:response.data.email
+
+      }));
+      console.log('הרשמה הצליחה:', response.data);
+
+        navigate('/CalendarComponent', { state: {username: response.data.username, useremail: response.data.email } });
       } catch (error) {
         console.log("error", error.response ? error.response.data : error.message);
       }
     } else {
       // LOGIN
-      const LoginDataToSend = {
-        email: formData.email,
-        password: formData.password,
-      };
-  
+
       try {
+        debugger
+        const LoginDataToSend = {
+          email: formData.email,
+          password: formData.password,
+        };  
+        // const response = await axios.post('http://localhost:8080/users/login', LoginDataToSend);
+        // dispatch(setUserData({ username: response.data.username, useremail: formData.email }));
+        // console.log('התחברות הצליחה:', response.data);
+        // navigate('/CalendarComponent', { state: { userId: response.data.userId, email: formData.email } });
         const response = await axios.post('http://localhost:8080/users/login', LoginDataToSend);
-        dispatch(setUserData({ username: response.data.username, useremail: formData.email }));
+        dispatch(setUserData({ 
+          // userId: response.data.userId, // שמירת userId בסלייס
+            username: response.data.username, 
+            useremail:response.data.email, 
+        }));
         console.log('התחברות הצליחה:', response.data);
-        navigate('/CalendarComponent', { state: { userId: response.data.userId, email: formData.email } });
+        navigate('/CalendarComponent', { state:{username:response.data.username, useremail:response.data.email}});
+      
+
       } catch (error) {
         console.log("error", error.response ? error.response.data : error.message);
       }
     }
   };
 
-  const responseGoogle = (response) => {
+  const responseGoogle = async (response) => {
+    debugger
     console.log(response);
-    // כאן תוכל לטפל בנתוני המשתמש שנשלחים מגוגל
-    // לדוגמה, תוכל להוסיף את הנתונים לסטייט שלך או להפעיל את הניווט
-    dispatch(setUserData({ username: response.profileObj.name, useremail: response.profileObj.email }));
-    navigate('/CalendarComponent', { state: { username: response.profileObj.name, useremail: response.profileObj.email } });
+    
+    // בדוק אם response מכיל את profileObj
+    if (response && response.profileObj) {
+      const { profileObj } = response; // קבלת פרטי המשתמש
+  
+      // הכנת הנתונים לשליחה לשרת
+      const dataToSend = {
+        username: profileObj.name,
+        email: profileObj.email,
+      };
+  
+      try {
+        // שליחת הנתונים לשרת
+        const res = await axios.post('http://localhost:8080/users/googleLogin', dataToSend);
+        
+        dispatch(setUserData({ 
+          username: res.data.username, 
+          useremail: res.data.email 
+        }));
+        
+        console.log('התחברות הצליחה:', res.data);
+        navigate('/CalendarComponent', { state: { username: res.data.username, useremail: res.data.email } });
+      } catch (error) {
+        console.log("error", error.response ? error.response.data : error.message);
+      }
+    } else {
+      console.log("Error: response does not contain profileObj", response);
+    }
   };
-
-  return (
+      return (
     <Container maxWidth="sm">
       <Box
         sx={{

@@ -1,25 +1,3 @@
-// import React from 'react';
-// import { Container, Typography, Button, List, ListItem, ListItemText } from '@mui/material';
-
-// const ReadAllTasksForToday = () => {
-//   return (
-//     // <Container sx={{ mt: 4 }}>
-//     //   <Typography variant="h4">Tasks for Today</Typography>
-//     //   <List>
-//     //     {/* Map through today's tasks */}
-//     //     <ListItem>
-//     //       <ListItemText primary="Task Name" />
-//     //       <Button variant="contained">Edit Task</Button>
-//     //       <Button variant="contained">Delete Task</Button>
-//     //     </ListItem>
-//     //   </List>
-//     //   <Button variant="contained">Add Task for Today</Button>
-//     // </Container>
-//     <h1>ReadAllTasksForToday</h1>
-//   );
-// };
-
-// export default ReadAllTasksForToday;
 
 
 import React, { useState } from 'react';

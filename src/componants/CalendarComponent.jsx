@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux'; // הוספת import
+
 import {
   Box,
   Card,
@@ -25,7 +27,12 @@ import {
 } from '@mui/icons-material';
 
 const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
+
+  const username = useSelector((state) => state.user.username); // קבלת email מהסלייס
+  const useremail = useSelector((state) => state.user.useremail); // קבלת email מהסלייס
+
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
   const [tasksData, setTasksData] = useState({
     '2024-01-15': [],
     '2024-01-20': [],
@@ -83,17 +90,16 @@ const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
   const days = getDaysInMonth(currentMonth);
   
   const handleAddTask = () => {
+    debugger
     const formattedDate = formatDateKey(selectedDay);
-
-    navigate('/CreateTask', { state: {formattedDate:formattedDate  } });
-    // if (newTask.trim()) {
-    //   setTasksData((prev) => ({
-    //     ...prev,
-    //     [formattedDate]: [...(prev[formattedDate] || []), newTask],
-    //   }));
-    //   setNewTask('');
-    //   setSelectedDay(null);
-    // }
+    const today = new Date();
+    if (selectedDay < today) {
+        // הצגת אלרט של MUI
+        alert("אא להוסיף משימה לתאריך שחלף");
+        return; // יציאה מהפונקציה אם התאריך חלף
+    }
+    navigate('/CreateTask', { state: { formattedDate: formattedDate, username:username, useremail:useremail} });
+    
   };
 
   const handleShowTasks = (date) => {
