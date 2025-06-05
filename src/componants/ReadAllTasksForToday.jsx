@@ -1,6 +1,9 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setCalendar } from '../store/userSlice'; // הנח שזו הפעולה לעדכון היומן
+import useDeleteTask from '../hooks/useDeleteTask';
 
-
-import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -29,76 +32,89 @@ import {
   Visibility,
   Today,
 } from '@mui/icons-material';
+import { useSelector } from 'react-redux';
 
-const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL }) => {
-  // Mock tasks data
-  const mockTasks = [
-    {
-      id: 1,
-      name: isRTL ? 'פגישת עבודה' : 'Work Meeting',
-      time: '09:00 - 10:30',
-      type: 'meeting',
-      emoji: '🤝',
-      description: isRTL ? 'פגישה עם הצוות' : 'Team meeting discussion',
-    },
-    {
-      id: 2,
-      name: isRTL ? 'שיחה עם לקוח' : 'Client Call',
-      time: '14:00 - 15:00',
-      type: 'call',
-      emoji: '📞',
-      description: isRTL ? 'שיחה חשובה' : 'Important client call',
-    },
-    {
-      id: 3,
-      name: isRTL ? 'יום הולדת אמא' : "Mom's Birthday",
-      time: '18:00',
-      type: 'birthday',
-      emoji: '🎂',
-      description: isRTL ? 'לא לשכוח!' : "Don't forget!",
-    },
-  ];
+const ReadAllTasksForToday = () => {
 
-  const formatDate = (date) => {
-    return date.toLocaleDateString(isRTL ? 'he-IL' : 'en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  const dispatch = useDispatch(); // ודא שזה למעלה
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [mockTasks, setMockTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
 
-  const handleTaskAction = (action, task = null) => {
+  
+  // הגדרות נוספות
+  const isRTL = false; // או true אם אתה רוצה להשתמש בכיוון RTL
+  const date = new Date(location.state.date); // אם date הוא מחרוזת תאריך
+  const formatDate = (date) => date.toLocaleDateString(); // פונקציה לעיצוב תאריך
+
+  const deleteTaskFromServer = useDeleteTask(mockTasks, setMockTasks, setSelectedTask);
+
+
+    const handleTaskAction = async (action, task = null) => {
+    if (!task) {
+      console.error('No task provided');
+      return;
+    }
+  
     switch (action) {
-      case 'add':
-        onNavigate('createTask');
-        break;
       case 'view':
-        setSelectedTask(task);
-        onNavigate('readTask');
+        navigate('/ReadTask', {
+          state: { task: task }
+        });
         break;
-      case 'edit':
-        setSelectedTask(task);
-        onNavigate('createTask');
-        break;
-      case 'delete':
-        // Mock delete - in real app would delete from state/database
-        console.log('Delete task:', task.id);
-        break;
-      default:
+        case 'edit':
+          navigate('/CreateTask', {
+            state: { 
+              task: {
+                name: task.name,
+                startTime: task.startTime,
+                endTime: task.endTime,
+                issueTask: task.issueTask,
+                typeTask: task.typeTask,
+                wayOfActing: task.wayOfActing,
+                emoji: task.emoji,
+              },
+            },
+          });
+          break;
+          case 'delete':
+            const current = Array.isArray(task) ? task[0] : task;
+            if (!current || !current._id) return alert('No task selected');
+            const confirmed = window.confirm('Are you sure you want to delete this task?');
+            if (confirmed) {
+              await deleteTaskFromServer(current._id);
+            }
+            break;
+                default:
         break;
     }
   };
+    
+  useEffect(() => {
+    if (location.state && location.state.tasks && location.state.tasks.length > 0) {
+      setMockTasks(location.state.tasks);
+    }
+    // אל תכניסי userTasks ל-deps!
+  }, [location.state]);
+  
+  
+
+
+  const handleTaskClick = (task) => {
+    debugger
+    setSelectedTask(task); 
+  };
+  
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      {/* App Bar */}
       <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' }}>
         <Toolbar>
           <IconButton
             edge="start"
             color="inherit"
-            onClick={() => onNavigate('calendar')}
+            onClick={() => navigate('/CalendarComponent')}
             sx={{ mr: 2 }}
           >
             <ArrowBack />
@@ -114,7 +130,6 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
         <Fade in timeout={600}>
           <Card>
             <CardContent sx={{ p: 4 }}>
-              {/* Date Header */}
               <Paper 
                 elevation={3}
                 sx={{ 
@@ -139,34 +154,20 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
                   {isRTL ? 'תאריך:' : 'Date:'}
                 </Typography>
                 <Typography variant="h5" color="text.secondary" fontWeight={500}>
-                  {formatDate(selectedDate)}
+                  {/* ........ */}
+                  {formatDate(date)}
                 </Typography>
               </Paper>
 
-              {/* Action Buttons */}
               <Grid container spacing={2} sx={{ mb: 4 }}>
                 <Grid item xs={12} sm={6} md={2.4}>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<Add />}
-                    onClick={() => handleTaskAction('add')}
-                    sx={{
-                      py: 1.5,
-                      background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                      '&:hover': {
-                        background: 'linear-gradient(45deg, #388e3c 30%, #4caf50 90%)',
-                      },
-                    }}
-                  >
-                    {isRTL ? 'הוסף למשימה היום' : 'Add Task for Today'}
-                  </Button>
                 </Grid>
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Button
                     fullWidth
                     variant="outlined"
                     startIcon={<Delete />}
+                    onClick={() => handleTaskAction('delete', selectedTask)}
                     sx={{
                       py: 1.5,
                       borderColor: '#f44336',
@@ -185,6 +186,7 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
                     fullWidth
                     variant="outlined"
                     startIcon={<Edit />}
+                    onClick={() => handleTaskAction('edit', selectedTask)}
                     sx={{
                       py: 1.5,
                       borderColor: '#ff9800',
@@ -203,6 +205,7 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
                     fullWidth
                     variant="outlined"
                     startIcon={<Visibility />}
+                    onClick={() => handleTaskAction('view', selectedTask)}
                     sx={{
                       py: 1.5,
                       borderColor: '#2196f3',
@@ -221,7 +224,7 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
                     fullWidth
                     variant="outlined"
                     startIcon={<ArrowBack />}
-                    onClick={() => onNavigate('calendar')}
+                    onClick={() => navigate('/CalendarComponent')}
                     sx={{
                       py: 1.5,
                       borderColor: '#9c27b0',
@@ -239,7 +242,6 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
 
               <Divider sx={{ mb: 4 }} />
 
-              {/* Tasks List */}
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
                 {isRTL ? 'משימות להיום:' : 'Tasks for Today:'}
               </Typography>
@@ -258,75 +260,56 @@ const ReadAllTasksForToday = ({ onNavigate, selectedDate, setSelectedTask, isRTL
                   </Typography>
                 </Paper>
               ) : (
-                <List sx={{ width: '100%' }}>
-                  {mockTasks.map((task, index) => (
-                    <Fade in timeout={600 + index * 200} key={task.id}>
-                      <Paper 
-                        elevation={3}
-                        sx={{ 
-                          mb: 2,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'translateY(-4px)',
-                            boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-                          },
-                        }}
-                      >
-                        <ListItem
-                          sx={{ 
-                            p: 3,
-                            cursor: 'pointer',
-                            '&:hover': {
-                              background: 'linear-gradient(45deg, #f5f5f5 30%, #e3f2fd 90%)',
-                            },
-                          }}
-                          onClick={() => handleTaskAction('view', task)}
-                        >
-                          <ListItemIcon sx={{ minWidth: 56 }}>
-                            <Box
-                              sx={{
-                                width: 48,
-                                height: 48,
-                                borderRadius: '50%',
-                                background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '1.5rem',
-                              }}
-                            >
-                              {task.emoji}
-                            </Box>
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Box display="flex" alignItems="center" gap={2}>
-                                <Typography variant="h6" fontWeight={600}>
-                                  {task.name}
-                                </Typography>
-                                <Chip
-                                  label={task.time}
-                                  size="small"
-                                  sx={{
-                                    background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                                    color: 'white',
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-                            }
-                            secondary={
-                              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                                {task.description}
-                              </Typography>
-                            }
-                          />
-                        </ListItem>
-                      </Paper>
-                    </Fade>
-                  ))}
-                </List>
-              )}
+<List sx={{ width: '100%' }}>
+{mockTasks.map((task, index) => {
+  const current = Array.isArray(task) ? task[0] : task;
+  return (
+    <Fade in timeout={600 + index * 200} key={current?._id}>
+      <Paper elevation={3} sx={{ mb: 2 }}>
+        <ListItem
+          onClick={() => handleTaskClick(task)}
+          sx={{
+            p: 3,
+            cursor: 'pointer',
+            border: selectedTask && (Array.isArray(selectedTask) ? selectedTask[0]?._id : selectedTask._id) === current._id
+              ? '2px solid black'
+              : 'none',
+            '&:hover': {
+              background: 'linear-gradient(45deg, #f5f5f5 30%, #e3f2fd 90%)',
+            },
+          }}
+        >
+          <ListItemIcon>
+            <Box sx={{
+              width: 48, height: 48, borderRadius: '50%',
+              background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.5rem',
+            }}>
+              {current.emoji}
+            </Box>
+          </ListItemIcon>
+          <ListItemText
+            primary={
+              <Box display="flex" alignItems="center" gap={2}>
+                <Typography variant="h6" fontWeight={600}>
+                  {current.name}
+                </Typography>
+                <Chip label={current.startTime} size="small" sx={{
+                  background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
+                  color: 'white',
+                  fontWeight: 600,
+                }} />
+              </Box>
+            }
+          />
+        </ListItem>
+      </Paper>
+    </Fade>
+  );
+})}
+
+</List>              )}
             </CardContent>
           </Card>
         </Fade>

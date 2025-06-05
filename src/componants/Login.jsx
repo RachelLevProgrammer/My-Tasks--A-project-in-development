@@ -3,7 +3,9 @@ import axios from 'axios';
 import { useDispatch } from 'react-redux';
 import { setUserData } from '../store/userSlice';
 import { useNavigate } from 'react-router-dom';
-import { GoogleLogin } from 'react-google-login';
+// import { GoogleLogin } from 'react-google-login';
+import { useForm } from 'react-hook-form';
+
 
 import {
   Box,
@@ -19,123 +21,115 @@ import {
   Divider,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person,
   Email,
   Lock,
-  Google,
+  // Google,
   Visibility,
   VisibilityOff,
   CalendarToday,
+  CheckCircleOutline,
+  ErrorOutline,
 } from '@mui/icons-material';
 
+// 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (field) => (event) => {
-    setFormData({
-      ...formData,
-      [field]: event.target.value,
-    });
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    reset,
+    watch,
+  } = useForm({
+    mode: 'onChange',
+  });
 
-  const handleSubmit = async () => {
-    debugger
-    console.log(formData);
+  const usernameValue = watch('username', '');
+
+  const onSubmit = async (data) => {
+    setLoading(true);
+
     if (!isLogin) {
-      // SIGN UP
-      const dataToSend = {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-      };
-  
+      // Registration flow
       try {
-        debugger
-        const response = await axios.post('http://localhost:8080/users/register', dataToSend);
-        dispatch(setUserData({ 
-          username: response.data.username,
-          useremail:response.data.email
+        const response = await axios.post('http://localhost:8080/users/register', data);
 
-      }));
-      console.log('הרשמה הצליחה:', response.data);
+        dispatch(
+          setUserData({
+            username: response.data.username,
+            useremail: response.data.email,
+            token: response.data.accessToken,
+            calendar: response.data.calendar || [],
+          })
+        );
 
-        navigate('/CalendarComponent', { state: {username: response.data.username, useremail: response.data.email } });
+        navigate('/CalendarComponent', {
+          state: {
+            username: response.data.username,
+            useremail: response.data.email,
+          },
+        });
+        reset();
       } catch (error) {
-        console.log("error", error.response ? error.response.data : error.message);
+        alert('Registration failed: ' + (error.response?.data?.message || error.message));
       }
     } else {
-      // LOGIN
 
       try {
-        debugger
-        const LoginDataToSend = {
-          email: formData.email,
-          password: formData.password,
-        };  
-        // const response = await axios.post('http://localhost:8080/users/login', LoginDataToSend);
-        // dispatch(setUserData({ username: response.data.username, useremail: formData.email }));
-        // console.log('התחברות הצליחה:', response.data);
-        // navigate('/CalendarComponent', { state: { userId: response.data.userId, email: formData.email } });
-        const response = await axios.post('http://localhost:8080/users/login', LoginDataToSend);
-        dispatch(setUserData({ 
-          // userId: response.data.userId, // שמירת userId בסלייס
-            username: response.data.username, 
-            useremail:response.data.email, 
-        }));
-        console.log('התחברות הצליחה:', response.data);
-        navigate('/CalendarComponent', { state:{username:response.data.username, useremail:response.data.email}});
-      
+        const response = await axios.post('http://localhost:8080/users/login', {
+          email: data.email,
+          password: data.password,
+        });
 
+        dispatch(
+          setUserData({
+            username: response.data.username,
+            useremail: response.data.useremail,
+            token: response.data.accessToken,
+            calendar: response.data.calendar,
+            userId: response.data.userId,
+          })
+        );
+
+        navigate('/CalendarComponent', {
+          state: {
+            username: response.data.username,
+            useremail: response.data.useremail,
+            token: response.data.accessToken,
+            calendar: response.data.calendar,
+            userId: response.data.userId,
+          },
+        });
+        reset();
       } catch (error) {
-        console.log("error", error.response ? error.response.data : error.message);
+        alert('Login failed: ' + (error.response?.data?.message || error.message));
       }
+    }
+
+    setLoading(false);
+  };
+
+  const renderValidationIcon = (field) => {
+    if (!field) return null;
+    if (field?.type) {
+
+      return <ErrorOutline color="error" sx={{ ml: 1 }} />;
+    } else {
+
+      return <CheckCircleOutline color="success" sx={{ ml: 1 }} />;
     }
   };
 
-  const responseGoogle = async (response) => {
-    debugger
-    console.log(response);
-    
-    // בדוק אם response מכיל את profileObj
-    if (response && response.profileObj) {
-      const { profileObj } = response; // קבלת פרטי המשתמש
-  
-      // הכנת הנתונים לשליחה לשרת
-      const dataToSend = {
-        username: profileObj.name,
-        email: profileObj.email,
-      };
-  
-      try {
-        // שליחת הנתונים לשרת
-        const res = await axios.post('http://localhost:8080/users/googleLogin', dataToSend);
-        
-        dispatch(setUserData({ 
-          username: res.data.username, 
-          useremail: res.data.email 
-        }));
-        
-        console.log('התחברות הצליחה:', res.data);
-        navigate('/CalendarComponent', { state: { username: res.data.username, useremail: res.data.email } });
-      } catch (error) {
-        console.log("error", error.response ? error.response.data : error.message);
-      }
-    } else {
-      console.log("Error: response does not contain profileObj", response);
-    }
-  };
-      return (
+  return (
     <Container maxWidth="sm">
       <Box
         sx={{
@@ -150,7 +144,14 @@ const Login = () => {
           <Card sx={{ width: '100%', maxWidth: 450, overflow: 'visible', position: 'relative' }}>
             <Box sx={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)' }}>
               <Zoom in timeout={1000}>
-                <Avatar sx={{ width: 60, height: 60, background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)', boxShadow: '0 8px 25px rgba(25,118,210,0.3)' }}>
+                <Avatar
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                    boxShadow: '0 8px 25px rgba(25,118,210,0.3)',
+                  }}
+                >
                   <CalendarToday sx={{ fontSize: 30 }} />
                 </Avatar>
               </Zoom>
@@ -158,30 +159,61 @@ const Login = () => {
 
             <CardContent sx={{ pt: 5, pb: 4, px: 4 }}>
               <Box textAlign="center" mb={4}>
-                <Typography variant="h4" component="h1" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', color: 'transparent', mb: 1 }}>
+                <Typography
+                  variant="h4"
+                  component="h1"
+                  sx={{
+                    background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    color: 'transparent',
+                    mb: 1,
+                  }}
+                >
                   {isLogin ? 'Welcome Back' : 'Create an Account'}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                  {isLogin ? 'Login to continue to TaskCal' : 'Register to manage your calendar and tasks'}
+                  {isLogin
+                    ? 'Login to continue to TaskCal'
+                    : 'Register to manage your calendar and tasks'}
                 </Typography>
               </Box>
 
-              <Box component="form" sx={{ mt: 3 }}>
+              <Box
+                component="form"
+                sx={{ mt: 3 }}
+                onSubmit={handleSubmit(onSubmit)}
+                noValidate
+                autoComplete="off"
+              >
                 {!isLogin && (
                   <TextField
                     fullWidth
                     label="Username"
                     variant="outlined"
-                    value={formData.username}
-                    onChange={handleInputChange('username')}
                     sx={{ mb: 3 }}
+                    error={!!errors.username}
+                    helperText={errors.username ? errors.username.message : ''}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
                           <Person color="primary" />
                         </InputAdornment>
                       ),
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          {renderValidationIcon(errors.username ? errors.username : !usernameValue ? null : {})}
+                        </InputAdornment>
+                      ),
                     }}
+                    {...register('username', {
+                      required: 'Username is required',
+                      minLength: { value: 3, message: 'Username must be at least 3 characters' },
+                      pattern: {
+                        value: /^[A-Za-z\s]+$/,
+                        message: 'Username should contain only letters and spaces',
+                      },
+                    })}
                   />
                 )}
 
@@ -190,16 +222,29 @@ const Login = () => {
                   label="Email"
                   type="email"
                   variant="outlined"
-                  value={formData.email}
-                  onChange={handleInputChange('email')}
                   sx={{ mb: 3 }}
+                  error={!!errors.email}
+                  helperText={errors.email ? errors.email.message : ''}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
                         <Email color="primary" />
                       </InputAdornment>
                     ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        {renderValidationIcon(errors.email ? errors.email : {})}
+                      </InputAdornment>
+                    ),
                   }}
+                  {...register('email', {
+                    required: 'Email is required',
+                    pattern: {
+                      value:
+                        /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
+                      message: 'Invalid email address',
+                    },
+                  })}
                 />
 
                 <TextField
@@ -207,9 +252,9 @@ const Login = () => {
                   label="Password"
                   type={showPassword ? 'text' : 'password'}
                   variant="outlined"
-                  value={formData.password}
-                  onChange={handleInputChange('password')}
                   sx={{ mb: 4 }}
+                  error={!!errors.password}
+                  helperText={errors.password ? errors.password.message : ''}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -224,25 +269,50 @@ const Login = () => {
                       </InputAdornment>
                     ),
                   }}
+                  {...register('password', {
+                    required: 'Password is required',
+                    minLength: { value: 3, message: 'Password must be at least 3 characters' },
+                  })}
                 />
 
                 <Button
+                  type="submit"
                   fullWidth
                   variant="contained"
                   size="large"
-                  onClick={handleSubmit}
-                  sx={{ mb: 2, py: 1.5, background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)', fontSize: '1.1rem' }}
+                  disabled={!isValid || loading}
+                  sx={{
+                    mb: 2,
+                    py: 1.5,
+                    background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+                    fontSize: '1.1rem',
+                    position: 'relative',
+                  }}
                 >
+                  {loading && (
+                    <CircularProgress
+                      size={24}
+                      sx={{
+                        color: 'white',
+                        position: 'absolute',
+                        left: 20,
+                        top: '50%',
+                        marginTop: '-12px',
+                      }}
+                    />
+                  )}
                   {isLogin ? 'LOGIN' : 'SIGN UP'}
                 </Button>
 
                 <Divider sx={{ my: 2 }}>
-                  <Typography variant="body2" color="text.secondary">or</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    or
+                  </Typography>
                 </Divider>
 
-                <GoogleLogin
-                  clientId="68610547463-6jlpb2r8l1v581fgkpljthjj5e0r07e6.apps.googleusercontent.com" // הכנס את ה-Client ID שלך כאן
-                  render={renderProps => (
+                {/* <GoogleLogin
+                  clientId="68610547463-6jlpb2r8l1v581fgkpljthjj5e0r07e6.apps.googleusercontent.com"
+                  render={(renderProps) => (
                     <Button
                       fullWidth
                       variant="outlined"
@@ -258,7 +328,7 @@ const Login = () => {
                         '&:hover': {
                           borderColor: '#db4437',
                           backgroundColor: 'rgba(219, 68, 55, 0.04)',
-                        }
+                        },
                       }}
                     >
                       Continue with Google
@@ -267,7 +337,7 @@ const Login = () => {
                   onSuccess={responseGoogle}
                   onFailure={responseGoogle}
                   cookiePolicy={'single_host_origin'}
-                />
+                /> */}
 
                 <Box mt={3} textAlign="center">
                   <Typography variant="body2">
@@ -277,7 +347,6 @@ const Login = () => {
                     </Button>
                   </Typography>
                 </Box>
-
               </Box>
             </CardContent>
           </Card>

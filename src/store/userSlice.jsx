@@ -1,9 +1,10 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit';
 
 const initialUserState = {
-  username: "",
-  useremail: "",
-  token: "", 
+  username: '',
+  useremail: '',
+  token: '',
+  calendar: [],
 };
 
 const UserSlice = createSlice({
@@ -13,15 +14,20 @@ const UserSlice = createSlice({
     setUserData: (state, action) => {
       state.username = action.payload.username;
       state.useremail = action.payload.useremail;
-      state.token = action.payload.token; // שמירת הטוקן
+      state.token = action.payload.token;
+      state.calendar = action.payload.calendar;
     },
     clearUser: (state) => {
       state.username = "";
       state.useremail = "";
-      state.token = ""; // ניקוי הטוקן
+      state.token = "";
+      state.calendar = [];
+    },
+    setCalendar: (state, action) => {
+      state.calendar = action.payload;
     },
   },
 });
 
-export const { setUserData, clearUser } = UserSlice.actions;
+export const { setUserData, clearUser, setCalendar } = UserSlice.actions;
 export default UserSlice.reducer;

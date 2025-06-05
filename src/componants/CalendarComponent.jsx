@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux'; // הוספת import
+import { useNavigate } from 'react-router-dom'; 
+import { useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 
 import {
   Box,
@@ -26,29 +27,48 @@ import {
   CalendarToday,
 } from '@mui/icons-material';
 
-const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
+const monthNames = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
-  const username = useSelector((state) => state.user.username); // קבלת email מהסלייס
-  const useremail = useSelector((state) => state.user.useremail); // קבלת email מהסלייס
+const CalendarComponent = ({ isRTL, setIsRTL }) => {
+  const username = useSelector((state) => state.user.username);
+  const useremail = useSelector((state) => state.user.useremail);
+  const token = useSelector((state) => state.user.token);
+  const UserCalendars = useSelector((state) => state.user.calendar);
+  const dispatch = useDispatch(); 
+  const [userTasks, setUserTasks] = useState(null);
+
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const [tasksData, setTasksData] = useState({
-    '2024-01-15': [],
-    '2024-01-20': [],
-    '2024-01-25': [],
-  });
-  const [newTask, setNewTask] = useState('');
+  const [tasksData, setTasksData] = useState({});
   const [selectedDay, setSelectedDay] = useState(null);
+  const [ThisDate, setThisDate] = useState(null); 
   const navigate = useNavigate();
 
-  const daysOfWeek = isRTL 
-    ? ['ש', 'ו', 'ה', 'ד', 'ג', 'ב', 'א']
-    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  useEffect(() => {
+    
+    const fetchTasks = () => {
+      const initialTasksData = {};
+      for (const task of UserCalendars) {
+        const innerTask = Array.isArray(task) ? task[0] : task;
+        if (!innerTask || !innerTask.date) continue;
+  
+        const dateValue = new Date(innerTask.date);
+        if (!isNaN(dateValue.getTime())) {
+          const taskDate = formatDateKey(dateValue);
+          if (!initialTasksData[taskDate]) {
+            initialTasksData[taskDate] = [];
+          }
+          initialTasksData[taskDate].push(Array.isArray(task) ? task[0] : task);
+        }
+      }
+      setTasksData(initialTasksData);
+    };
+    fetchTasks();
+  }, [UserCalendars]);
 
-  const monthNames = isRTL
-    ? ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר']
-    : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November'];
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -59,24 +79,27 @@ const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
-    
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
-    
     return days;
   };
 
+
   const formatDateKey = (date) => {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
+  
 
   const handleDayClick = (date) => {
     setSelectedDay(date);
+    setThisDate(date); 
   };
 
   const handlePrevMonth = () => {
@@ -87,39 +110,33 @@ const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
-  const days = getDaysInMonth(currentMonth);
-  
   const handleAddTask = () => {
-    debugger
     const formattedDate = formatDateKey(selectedDay);
     const today = new Date();
     if (selectedDay < today) {
-        // הצגת אלרט של MUI
-        alert("אא להוסיף משימה לתאריך שחלף");
-        return; // יציאה מהפונקציה אם התאריך חלף
+      alert("אא להוסיף משימה לתאריך שחלף");
+      return; 
     }
-    navigate('/CreateTask', { state: { formattedDate: formattedDate, username:username, useremail:useremail} });
+    navigate('/CreateTask', { state: { formattedDate: formattedDate, username: username, useremail: useremail, token: token } });
+  };
+
+  const handleShowTasksForToday = () => {
     
-  };
-
-  const handleShowTasks = (date) => {
-    handleDayClick(date);
-  };
-
-  const handleClickOutside = (event) => {
-    const isButton = event.target.closest('button');
-    if (!event.target.closest('.calendar-day') && !isButton) {
-      setSelectedDay(null);
-    }
-  };
-
-  useEffect(() => {
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, []);
-
+    if (!selectedDay) return;
+  
+    const formattedDate = formatDateKey(selectedDay);
+    const tasksForToday = tasksData[formattedDate] || [];
+  
+    navigate('/ReadAllTasksForToday', {
+      state: {
+        tasks: tasksForToday, // אל תעטוף כל אחד באובייקט חדש
+        date: formattedDate
+      }
+    });
+          };
+  
+  const days = getDaysInMonth(currentMonth);
+  
   return (
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' }}>
@@ -129,36 +146,42 @@ const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
             TaskCal Calendar
           </Typography>
           
-          <Button
+          {/* <Button
             color="inherit"
             startIcon={<Translate />}
             onClick={() => setIsRTL(!isRTL)}
             sx={{ mr: 1 }}
           >
             {isRTL ? 'English' : 'עברית'}
-          </Button>
-          
-          {selectedDay && (
-            <Button
-              color="inherit"
-              startIcon={<Add />}
-              onClick={handleAddTask}
-              sx={{ mr: 1 }}
-            >
-              {isRTL ? 'הוסף משימה' : 'Add Task'}
-            </Button>
-          )}
+          </Button> */}
           
           <Button
-            color="inherit"
-            startIcon={<Today />}
-            onClick={() => {
-              setSelectedDay(new Date());
-              onNavigate('todayTasks');
-            }}
-          >
-            {isRTL ? 'מסך היום' : "Today's Screen"}
-          </Button>
+  color="inherit"
+  onClick={() => navigate('/ReadAllTasksForToday', { state: { tasks: UserCalendars } })}
+  sx={{ mr: 1 }}
+>
+  {isRTL ? 'כל המשימות שלי' : 'All My Tasks'}
+</Button>
+          
+          {selectedDay && (
+            <>
+              <Button
+                color="inherit"
+                startIcon={<Add />}
+                onClick={handleAddTask}
+                sx={{ mr: 1 }}
+              >
+                {isRTL ? 'הוסף משימה' : 'Add Task'}
+              </Button>
+              <Button
+                color="inherit"
+                onClick={handleShowTasksForToday}
+                sx={{ mr: 1 }}
+              >
+                {isRTL ? 'המשימות להיום' : " Tasks for Today"}
+              </Button>
+            </>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -198,7 +221,7 @@ const CalendarComponent = ({ onNavigate, isRTL, setIsRTL }) => {
                           color: date.toDateString() === new Date().toDateString() ? 'white' : 'inherit',
                         }}
                         onClick={() => {
-                          handleShowTasks(date);
+                          handleDayClick(date);
                           setSelectedDay(date);
                         }}
                       >
