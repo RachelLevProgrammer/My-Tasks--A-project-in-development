@@ -129,7 +129,7 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
   
     navigate('/ReadAllTasksForToday', {
       state: {
-        tasks: tasksForToday, // אל תעטוף כל אחד באובייקט חדש
+        tasks: tasksForToday, 
         date: formattedDate
       }
     });

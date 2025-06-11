@@ -3,7 +3,6 @@ import axios from 'axios';
 import { useDispatch } from 'react-redux';
 import { setUserData } from '../store/userSlice';
 import { useNavigate } from 'react-router-dom';
-// import { GoogleLogin } from 'react-google-login';
 import { useForm } from 'react-hook-form';
 
 
@@ -59,7 +58,7 @@ const Login = () => {
     setLoading(true);
 
     if (!isLogin) {
-      // Registration flow
+  
       try {
         const response = await axios.post('http://localhost:8080/users/register', data);
 

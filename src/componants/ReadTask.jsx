@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+
 import {
   Box,
   Card,
@@ -28,18 +29,13 @@ import {
 import { useSelector } from 'react-redux';
 
 const ReadTask = () => {
+  const navigate = useNavigate(); // בתוך קומפוננטת ReadTask
+
   const location = useLocation();
   const task = location.state.task;
-  // const [task, setTask] = useState(null);
 const userTasks=useSelector((state)=>state.user.calendar)
 
-// useEffect(() => {
-//   if (taskId && userTasks && userTasks.length > 0) {
-//     const foundTask = userTasks.find(t => t.id === taskId);
-//     setTask(foundTask || null);
-//   }
-// }, [taskId, userTasks]);
-  
+
     const getTaskTypeLabel = (type) => {
     const types = {
       reminder: 'Reminder',
@@ -61,9 +57,14 @@ const userTasks=useSelector((state)=>state.user.calendar)
   };
 
   const handleEditTask = () => {
-    // לדוגמה: ניווט לעריכת משימה
+    navigate('/CreateTask', {
+      state: {
+        task: task,       // המשימה לעריכה
+        isEdit: true,     // מצב עריכה
+        formattedDate: task.date, // תאריך - נדרש כדי לשמור/לעדכן
+      },
+    });
   };
-
    
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -80,9 +81,6 @@ const userTasks=useSelector((state)=>state.user.calendar)
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
             Task Details
           </Typography>
-          <Button color="inherit" startIcon={<Edit />} onClick={handleEditTask}>
-            Edit Task
-          </Button>
         </Toolbar>
       </AppBar>
 

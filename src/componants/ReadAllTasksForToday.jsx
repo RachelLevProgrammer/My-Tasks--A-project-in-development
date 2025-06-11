@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { setCalendar } from '../store/userSlice'; // הנח שזו הפעולה לעדכון היומן
 import useDeleteTask from '../hooks/useDeleteTask';
 
 import {
@@ -36,17 +35,16 @@ import { useSelector } from 'react-redux';
 
 const ReadAllTasksForToday = () => {
 
-  const dispatch = useDispatch(); // ודא שזה למעלה
+  const dispatch = useDispatch(); 
   const navigate = useNavigate();
   const location = useLocation();
   const [mockTasks, setMockTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
 
   
-  // הגדרות נוספות
-  const isRTL = false; // או true אם אתה רוצה להשתמש בכיוון RTL
-  const date = new Date(location.state.date); // אם date הוא מחרוזת תאריך
-  const formatDate = (date) => date.toLocaleDateString(); // פונקציה לעיצוב תאריך
+  const isRTL = false;
+  const date = new Date(location.state.date);
+  const formatDate = (date) => date.toLocaleDateString(); 
 
   const deleteTaskFromServer = useDeleteTask(mockTasks, setMockTasks, setSelectedTask);
 
@@ -63,18 +61,13 @@ const ReadAllTasksForToday = () => {
           state: { task: task }
         });
         break;
+        
         case 'edit':
           navigate('/CreateTask', {
             state: { 
-              task: {
-                name: task.name,
-                startTime: task.startTime,
-                endTime: task.endTime,
-                issueTask: task.issueTask,
-                typeTask: task.typeTask,
-                wayOfActing: task.wayOfActing,
-                emoji: task.emoji,
-              },
+              task: task,
+              isEdit: true,
+              formattedDate: task.date
             },
           });
           break;
@@ -95,14 +88,12 @@ const ReadAllTasksForToday = () => {
     if (location.state && location.state.tasks && location.state.tasks.length > 0) {
       setMockTasks(location.state.tasks);
     }
-    // אל תכניסי userTasks ל-deps!
   }, [location.state]);
   
   
 
 
   const handleTaskClick = (task) => {
-    debugger
     setSelectedTask(task); 
   };
   
@@ -317,5 +308,8 @@ const ReadAllTasksForToday = () => {
     </Box>
   );
 };
+
+
+
 
 export default ReadAllTasksForToday;

@@ -2,7 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import './App.css';
 
-// טעינת הקומפוננטות בעזרת React.lazy
+
 const Login = lazy(() => import('../src/componants/Login'));
 const CalendarComponent = lazy(() => import('../src/componants/CalendarComponent'));
 const CreateTask = lazy(() => import('./componants/CreateTask'));
