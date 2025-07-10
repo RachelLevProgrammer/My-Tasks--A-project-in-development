@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Box,
   Card,
@@ -17,7 +15,7 @@ import {
   Chip,
   Divider,
   Fade,
-} from '@mui/material';
+} from "@mui/material";
 import {
   ArrowBack,
   Edit,
@@ -25,55 +23,109 @@ import {
   Category,
   Notifications,
   Email,
-} from '@mui/icons-material';
-import { useSelector } from 'react-redux';
+  Token,
+} from "@mui/icons-material";
+import axios from "axios";
 
 const ReadTask = () => {
-  const navigate = useNavigate(); // בתוך קומפוננטת ReadTask
-
+  const navigate = useNavigate();
   const location = useLocation();
-  const task = location.state.task;
-const userTasks=useSelector((state)=>state.user.calendar)
 
+  const taskId = location.state?.taskId || location.state?.task?._id;
+  const [currentTask, setCurrentTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const token = localStorage.getItem('token');
 
-    const getTaskTypeLabel = (type) => {
-    const types = {
-      reminder: 'Reminder',
-      meeting: 'Meeting',
-      call: 'Call',
-      course: 'Course',
-      birthday: 'Birthday',
-      other: 'Other',
-    };
-    return types[type] || type;
-  };
+  useEffect(() => {
+    console.log("taskId:", taskId);
+    if (!taskId) {
+      setError("No task ID provided");
+      setLoading(false);
+      return;
+    }
+  
+    setLoading(true);
+  
+    axios.get(`http://localhost:8080/tasks/getTask/${taskId}`, {
+      withCredentials: true,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    .then((res) => {
+      console.log("Response from server:", res);
+      console.log("Response data:", res.data);
+      if(res.data.task) {
+        setCurrentTask(res.data.task);
+      } else {
+        setCurrentTask(res.data); // לנסות במקרה שאין תת-אובייקט task
+      }
+      setLoading(false);
+    })
+    .catch((err) => {
+      console.error("Error fetching task:", err);
+      setError("Failed to load task");
+      setLoading(false);
+    });
+  }, [taskId]);
+    
+  if (loading)
+    return (
+      <Typography variant="h6" align="center" sx={{ mt: 10 }}>
+        טוען משימה...
+      </Typography>
+    );
+  if (error)
+    return (
+      <Typography variant="h6" align="center" sx={{ mt: 10 }}>
+        {error}
+      </Typography>
+    );
+  if (!currentTask)
+    return (
+      <Typography variant="h6" align="center" sx={{ mt: 10 }}>
+        לא נמצאה משימה להצגה
+      </Typography>
+    );
 
-  const getReminderMethodLabel = (method) => {
-    const methods = {
-      email: 'Email',
-      notification: 'Notification',
-    };
-    return methods[method] || method;
-  };
+  const getTaskTypeLabel = (type) =>
+    ({
+      reminder: "Reminder",
+      meeting: "Meeting",
+      call: "Call",
+      course: "Course",
+      birthday: "Birthday",
+      other: "Other",
+    }[type] || type);
+
+  const getReminderMethodLabel = (method) =>
+    ({
+      email: "Email",
+      notification: "Notification",
+    }[method] || method);
 
   const handleEditTask = () => {
-    navigate('/CreateTask', {
+    navigate("/CreateTask", {
       state: {
-        task: task,       // המשימה לעריכה
-        isEdit: true,     // מצב עריכה
-        formattedDate: task.date, // תאריך - נדרש כדי לשמור/לעדכן
+        task: currentTask,
+        isEdit: true,
+        formattedDate: currentTask.date,
       },
     });
   };
-   
+
   return (
     <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' }}>
+      <AppBar
+        position="static"
+        sx={{ background: "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)" }}
+      >
         <Toolbar>
           <IconButton
             edge="start"
             color="inherit"
-            onClick={() => window.history.back()}
+            onClick={() => navigate(-1)}
             sx={{ mr: 2 }}
           >
             <ArrowBack />
@@ -93,92 +145,90 @@ const userTasks=useSelector((state)=>state.user.calendar)
                 sx={{
                   p: 4,
                   mb: 4,
-                  textAlign: 'center',
-                  background: 'linear-gradient(45deg, #f5f5f5 30%, #e3f2fd 90%)',
+                  textAlign: "center",
+                  background: "linear-gradient(45deg, #f5f5f5 30%, #e3f2fd 90%)",
                 }}
               >
-                <Box
+                <Typography
+                  variant="h3"
                   sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '2.5rem',
-                    margin: '0 auto 16px auto',
+                    background: "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)",
+                    backgroundClip: "text",
+                    WebkitBackgroundClip: "text",
+                    color: "transparent",
+                    fontWeight: 700,
+                    mb: 2,
                   }}
                 >
-                  {/* {task.emoji} */}
-                </Box>
-                <Typography variant="h3" sx={{
-                  background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent',
-                  fontWeight: 700,
-                  mb: 2,
-                }}>
-                  {task.name}
+                  {currentTask.name}
                 </Typography>
                 <Chip
-                  label={getTaskTypeLabel(task.typeTask)}
+                  label={getTaskTypeLabel(currentTask.typeTask)}
                   sx={{
-                    background: 'linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)',
-                    color: 'white',
+                    background: "linear-gradient(45deg, #4caf50 30%, #66bb6a 90%)",
+                    color: "white",
                     fontWeight: 600,
-                    fontSize: '1rem',
+                    fontSize: "1rem",
                     height: 36,
                   }}
                 />
               </Paper>
 
               <Grid container spacing={3}>
-                {/* Timing */}
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={2} sx={{ p: 3, background: '#fffde7' }}>
+                  <Paper elevation={2} sx={{ p: 3, background: "#fffde7" }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                       <Schedule sx={{ mr: 1 }} /> Timing
                     </Typography>
-                    <Typography variant="body1"><strong>Start:</strong> {task.startTime}</Typography>
-                    <Typography variant="body1"><strong>End:</strong> {task.endTime}</Typography>
+                    <Typography variant="body1">
+                      <strong>Start:</strong> {currentTask.startTime}
+                    </Typography>
+                    <Typography variant="body1">
+                      <strong>End:</strong> {currentTask.endTime}
+                    </Typography>
                   </Paper>
                 </Grid>
 
-                {/* Type */}
                 <Grid item xs={12} md={6}>
-                  <Paper elevation={2} sx={{ p: 3, background: '#f3e5f5' }}>
+                  <Paper elevation={2} sx={{ p: 3, background: "#f3e5f5" }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
                       <Category sx={{ mr: 1 }} /> Type
                     </Typography>
-                    <Typography variant="h6">{getTaskTypeLabel(task.typeTask)}</Typography>
+                    <Typography variant="h6">
+                      {getTaskTypeLabel(currentTask.typeTask)}
+                    </Typography>
                   </Paper>
                 </Grid>
 
-                {/* Reminder */}
                 <Grid item xs={12}>
-                  <Paper elevation={2} sx={{ p: 3, background: '#e8f5e9' }}>
+                  <Paper elevation={2} sx={{ p: 3, background: "#e8f5e9" }}>
                     <Typography variant="h6" sx={{ mb: 2 }}>
-                      {task.wayOfActing === 'email' ? <Email sx={{ mr: 1 }} /> : <Notifications sx={{ mr: 1 }} />}
+                      {currentTask.wayOfActing === "email" ? (
+                        <Email sx={{ mr: 1 }} />
+                      ) : (
+                        <Notifications sx={{ mr: 1 }} />
+                      )}
                       Reminder Method
                     </Typography>
-                    <Typography variant="body1">{getReminderMethodLabel(task.wayOfActing)}</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Description */}
-                <Grid item xs={12}>
-                  <Paper elevation={2} sx={{ p: 3 }}>
-                    <Typography variant="h6" gutterBottom>Task Subject</Typography>
-                    <Divider sx={{ mb: 2 }} />
-                    <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
-                      {task.issueTask.text || task.issueTask}
+                    <Typography variant="body1">
+                      {getReminderMethodLabel(currentTask.wayOfActing)}
                     </Typography>
                   </Paper>
                 </Grid>
 
-                {/* Edit button */}
+                <Grid item xs={12}>
+                  <Paper elevation={2} sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Task Subject
+                    </Typography>
+                    <Divider sx={{ mb: 2 }} />
+                    <Box
+                      sx={{ lineHeight: 1.6 }}
+                      dangerouslySetInnerHTML={{ __html: currentTask.issueTask }}
+                    />
+                  </Paper>
+                </Grid>
+
                 <Grid item xs={12}>
                   <Box textAlign="center" sx={{ mt: 3 }}>
                     <Button
@@ -187,9 +237,11 @@ const userTasks=useSelector((state)=>state.user.calendar)
                       onClick={handleEditTask}
                       startIcon={<Edit />}
                       sx={{
-                        background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-                        '&:hover': {
-                          background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+                        background:
+                          "linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)",
+                        "&:hover": {
+                          background:
+                            "linear-gradient(45deg, #1565c0 30%, #1976d2 90%)",
                         },
                       }}
                     >

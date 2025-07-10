@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; 
-import { useSelector } from 'react-redux';
-import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import axios from 'axios';
 
 import {
   Box,
@@ -20,12 +20,12 @@ import {
 } from '@mui/material';
 import {
   Add,
-  Today,
-  Translate,
   ArrowBack,
   ArrowForward,
   CalendarToday,
 } from '@mui/icons-material';
+
+import { setUserData } from '../store/userSlice';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -33,42 +33,67 @@ const monthNames = [
 ];
 
 const CalendarComponent = ({ isRTL, setIsRTL }) => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const username = useSelector((state) => state.user.username);
   const useremail = useSelector((state) => state.user.useremail);
-  const token = useSelector((state) => state.user.token);
   const UserCalendars = useSelector((state) => state.user.calendar);
-  const dispatch = useDispatch(); 
-  const [userTasks, setUserTasks] = useState(null);
-
+  const token = localStorage.getItem('token');
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [tasksData, setTasksData] = useState({});
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [ThisDate, setThisDate] = useState(null); 
-  const navigate = useNavigate();
+  const [selectedDay, setSelectedDay] = useState(new Date());
+  const [error, setError] = useState(null);
+
+  const formatDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const loadTasks = tasksArray => {
+    const m = {};
+    tasksArray.forEach(task => {
+      const d = formatDateKey(new Date(task.date));
+      if (!m[d]) m[d] = [];
+      m[d].push(task);
+    });
+    setTasksData(m);
+  };
 
   useEffect(() => {
-    
-    const fetchTasks = () => {
-      const initialTasksData = {};
-      for (const task of UserCalendars) {
-        const innerTask = Array.isArray(task) ? task[0] : task;
-        if (!innerTask || !innerTask.date) continue;
-  
-        const dateValue = new Date(innerTask.date);
-        if (!isNaN(dateValue.getTime())) {
-          const taskDate = formatDateKey(dateValue);
-          if (!initialTasksData[taskDate]) {
-            initialTasksData[taskDate] = [];
-          }
-          initialTasksData[taskDate].push(Array.isArray(task) ? task[0] : task);
-        }
+    const localUser = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!username && localUser?._id) {
+      dispatch(setUserData(localUser));
+    }
+  }, [username, dispatch]);
+
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      if (!token) return;
+      try {
+        const res = await axios.get('http://localhost:8080/tasks/getTasks', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        loadTasks(res.data);
+      } catch (e) {
+        console.error('Error loading tasks', e);
+        setError('שגיאה בטעינת המשימות');
       }
-      setTasksData(initialTasksData);
     };
     fetchTasks();
-  }, [UserCalendars]);
+  }, [token]);
 
+  useEffect(() => {
+    if (username) {
+      localStorage.setItem('user', JSON.stringify({
+        username, useremail, calendar: UserCalendars, token
+      }));
+    }
+  }, [username, useremail, UserCalendars, token]);
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -88,18 +113,9 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
     return days;
   };
 
-
-  const formatDateKey = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-
   const handleDayClick = (date) => {
     setSelectedDay(date);
-    setThisDate(date); 
+    setError(null);
   };
 
   const handlePrevMonth = () => {
@@ -111,32 +127,44 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
   };
 
   const handleAddTask = () => {
+    if (!selectedDay) {
+      setError('אנא בחר יום קודם להוספת משימה');
+      return;
+    }
+
     const formattedDate = formatDateKey(selectedDay);
     const today = new Date();
-    if (selectedDay < today) {
-      alert("אא להוסיף משימה לתאריך שחלף");
-      return; 
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(selectedDay);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      setError('לא ניתן להוסיף משימה לתאריך שחלף');
+      return;
     }
-    navigate('/CreateTask', { state: { formattedDate: formattedDate, username: username, useremail: useremail, token: token } });
+
+    setError(null);
+    navigate('/CreateTask', {
+      state: { formattedDate, username, useremail, token }
+    });
   };
 
   const handleShowTasksForToday = () => {
-    
-    if (!selectedDay) return;
-  
+    if (!selectedDay) {
+      setError('אנא בחר יום כדי לראות את המשימות');
+      return;
+    }
+
     const formattedDate = formatDateKey(selectedDay);
     const tasksForToday = tasksData[formattedDate] || [];
-  
+
     navigate('/ReadAllTasksForToday', {
-      state: {
-        tasks: tasksForToday, 
-        date: formattedDate
-      }
+      state: { tasks: tasksForToday, date: formattedDate }
     });
-          };
-  
+  };
+
   const days = getDaysInMonth(currentMonth);
-  
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)' }}>
@@ -145,24 +173,15 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             TaskCal Calendar
           </Typography>
-          
-          {/* <Button
+
+          <Button
             color="inherit"
-            startIcon={<Translate />}
-            onClick={() => setIsRTL(!isRTL)}
+            onClick={() => navigate('/ReadAllTasksForToday', { state: { tasks: UserCalendars } })}
             sx={{ mr: 1 }}
           >
-            {isRTL ? 'English' : 'עברית'}
-          </Button> */}
-          
-          <Button
-  color="inherit"
-  onClick={() => navigate('/ReadAllTasksForToday', { state: { tasks: UserCalendars } })}
-  sx={{ mr: 1 }}
->
-  {isRTL ? 'כל המשימות שלי' : 'All My Tasks'}
-</Button>
-          
+            {isRTL ? 'כל המשימות שלי' : 'All My Tasks'}
+          </Button>
+
           {selectedDay && (
             <>
               <Button
@@ -178,7 +197,7 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
                 onClick={handleShowTasksForToday}
                 sx={{ mr: 1 }}
               >
-                {isRTL ? 'המשימות להיום' : " Tasks for Today"}
+                {isRTL ? 'המשימות להיום' : 'Tasks for Today'}
               </Button>
             </>
           )}
@@ -186,6 +205,11 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
+        {error && (
+          <Typography color="error" mb={2} align="center" fontWeight={600}>
+            {error}
+          </Typography>
+        )}
         <Fade in timeout={600}>
           <Card sx={{ mb: 4 }}>
             <CardContent>
@@ -193,11 +217,11 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
                 <IconButton onClick={handlePrevMonth}>
                   <ArrowBack />
                 </IconButton>
-                
+
                 <Typography variant="h4" component="h2">
                   {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </Typography>
-                
+
                 <IconButton onClick={handleNextMonth}>
                   <ArrowForward />
                 </IconButton>
@@ -208,22 +232,20 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
                   <Grid item xs key={index}>
                     {date ? (
                       <Paper
-                        className="calendar-day"
-                        elevation={2}
+                        elevation={selectedDay && date.toDateString() === selectedDay.toDateString() ? 8 : 2}
                         sx={{
                           p: 2,
                           minHeight: 80,
                           cursor: 'pointer',
-                          border: selectedDay && date.toDateString() === selectedDay.toDateString() ? '2px solid black' : 'none',
-                          background: date.toDateString() === new Date().toDateString() 
+                          border: selectedDay && date.toDateString() === selectedDay.toDateString()
+                            ? '2px solid black' : 'none',
+                          background: date.toDateString() === new Date().toDateString()
                             ? 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)'
                             : 'white',
                           color: date.toDateString() === new Date().toDateString() ? 'white' : 'inherit',
+                          transition: 'background-color 0.3s',
                         }}
-                        onClick={() => {
-                          handleDayClick(date);
-                          setSelectedDay(date);
-                        }}
+                        onClick={() => handleDayClick(date)}
                       >
                         <Box display="flex" flexDirection="column" alignItems="center">
                           <Typography variant="h6" fontWeight={600}>
@@ -231,7 +253,7 @@ const CalendarComponent = ({ isRTL, setIsRTL }) => {
                           </Typography>
                           {tasksData[formatDateKey(date)] && (
                             <Chip
-                              label={`${tasksData[formatDateKey(date)].length} tasks`}
+                              label={`${tasksData[formatDateKey(date)].length} משימות`}
                               size="small"
                               sx={{
                                 mt: 1,

@@ -4,8 +4,6 @@ import { useDispatch } from 'react-redux';
 import { setUserData } from '../store/userSlice';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-
-
 import {
   Box,
   Card,
@@ -26,7 +24,6 @@ import {
   Person,
   Email,
   Lock,
-  // Google,
   Visibility,
   VisibilityOff,
   CalendarToday,
@@ -34,13 +31,15 @@ import {
   ErrorOutline,
 } from '@mui/icons-material';
 
-// 
+axios.defaults.withCredentials = true;
+
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const {
     register,
@@ -48,84 +47,58 @@ const Login = () => {
     formState: { errors, isValid },
     reset,
     watch,
-  } = useForm({
-    mode: 'onChange',
-  });
+  } = useForm({ mode: 'onChange' });
 
   const usernameValue = watch('username', '');
 
   const onSubmit = async (data) => {
     setLoading(true);
+    setErrorMessage('');
 
-    if (!isLogin) {
-  
-      try {
-        const response = await axios.post('http://localhost:8080/users/register', data);
+    try {
+      const endpoint = isLogin
+        ? 'http://localhost:8080/users/login'
+        : 'http://localhost:8080/users/register';
 
-        dispatch(
-          setUserData({
-            username: response.data.username,
-            useremail: response.data.email,
-            token: response.data.accessToken,
-            calendar: response.data.calendar || [],
-          })
-        );
+      const payload = isLogin
+        ? { email: data.email, password: data.password }
+        : { username: data.username, email: data.email, password: data.password };
 
-        navigate('/CalendarComponent', {
-          state: {
-            username: response.data.username,
-            useremail: response.data.email,
-          },
-        });
-        reset();
-      } catch (error) {
-        alert('Registration failed: ' + (error.response?.data?.message || error.message));
+      const response = await axios.post(endpoint, payload);
+
+      // שמירת הטוקן ב-localStorage
+      const token = response.data.token;
+      if (token) {
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
-    } else {
 
-      try {
-        const response = await axios.post('http://localhost:8080/users/login', {
-          email: data.email,
-          password: data.password,
-        });
+      // שמירת נתוני המשתמש
+      const userData = {
+        username: response.data.username,
+        useremail: response.data.email || response.data.useremail,
+        calendar: response.data.calendar || [],
+        token: response.data.token, // 👈 זה מה שהיה חסר
+        userId: response.data.userId,
+      };
+      
+      dispatch(setUserData(userData));
+      localStorage.setItem('user', JSON.stringify(userData));
 
-        dispatch(
-          setUserData({
-            username: response.data.username,
-            useremail: response.data.useremail,
-            token: response.data.accessToken,
-            calendar: response.data.calendar,
-            userId: response.data.userId,
-          })
-        );
-
-        navigate('/CalendarComponent', {
-          state: {
-            username: response.data.username,
-            useremail: response.data.useremail,
-            token: response.data.accessToken,
-            calendar: response.data.calendar,
-            userId: response.data.userId,
-          },
-        });
-        reset();
-      } catch (error) {
-        alert('Login failed: ' + (error.response?.data?.message || error.message));
-      }
+      navigate('/CalendarComponent');
+      reset();
+    } catch (error) {
+      setErrorMessage(error.response?.data?.message || error.message);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const renderValidationIcon = (field) => {
     if (!field) return null;
-    if (field?.type) {
-
-      return <ErrorOutline color="error" sx={{ ml: 1 }} />;
-    } else {
-
-      return <CheckCircleOutline color="success" sx={{ ml: 1 }} />;
-    }
+    return field?.type
+      ? <ErrorOutline color="error" sx={{ ml: 1 }} />
+      : <CheckCircleOutline color="success" sx={{ ml: 1 }} />;
   };
 
   return (
@@ -178,13 +151,13 @@ const Login = () => {
                 </Typography>
               </Box>
 
-              <Box
-                component="form"
-                sx={{ mt: 3 }}
-                onSubmit={handleSubmit(onSubmit)}
-                noValidate
-                autoComplete="off"
-              >
+              {errorMessage && (
+                <Typography variant="body2" color="error" align="center" sx={{ mb: 2 }}>
+                  {errorMessage}
+                </Typography>
+              )}
+
+              <Box component="form" sx={{ mt: 3 }} onSubmit={handleSubmit(onSubmit)} noValidate>
                 {!isLogin && (
                   <TextField
                     fullWidth
@@ -192,7 +165,7 @@ const Login = () => {
                     variant="outlined"
                     sx={{ mb: 3 }}
                     error={!!errors.username}
-                    helperText={errors.username ? errors.username.message : ''}
+                    helperText={errors.username?.message}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -201,7 +174,9 @@ const Login = () => {
                       ),
                       endAdornment: (
                         <InputAdornment position="end">
-                          {renderValidationIcon(errors.username ? errors.username : !usernameValue ? null : {})}
+                          {renderValidationIcon(
+                            errors.username ? errors.username : !usernameValue ? null : {}
+                          )}
                         </InputAdornment>
                       ),
                     }}
@@ -223,7 +198,7 @@ const Login = () => {
                   variant="outlined"
                   sx={{ mb: 3 }}
                   error={!!errors.email}
-                  helperText={errors.email ? errors.email.message : ''}
+                  helperText={errors.email?.message}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -239,8 +214,7 @@ const Login = () => {
                   {...register('email', {
                     required: 'Email is required',
                     pattern: {
-                      value:
-                        /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
+                      value: /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/,
                       message: 'Invalid email address',
                     },
                   })}
@@ -253,7 +227,7 @@ const Login = () => {
                   variant="outlined"
                   sx={{ mb: 4 }}
                   error={!!errors.password}
-                  helperText={errors.password ? errors.password.message : ''}
+                  helperText={errors.password?.message}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -308,35 +282,6 @@ const Login = () => {
                     or
                   </Typography>
                 </Divider>
-
-                {/* <GoogleLogin
-                  clientId="68610547463-6jlpb2r8l1v581fgkpljthjj5e0r07e6.apps.googleusercontent.com"
-                  render={(renderProps) => (
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      size="large"
-                      onClick={renderProps.onClick}
-                      disabled={renderProps.disabled}
-                      startIcon={<Google />}
-                      sx={{
-                        py: 1.5,
-                        borderColor: '#db4437',
-                        color: '#db4437',
-                        fontSize: '1.1rem',
-                        '&:hover': {
-                          borderColor: '#db4437',
-                          backgroundColor: 'rgba(219, 68, 55, 0.04)',
-                        },
-                      }}
-                    >
-                      Continue with Google
-                    </Button>
-                  )}
-                  onSuccess={responseGoogle}
-                  onFailure={responseGoogle}
-                  cookiePolicy={'single_host_origin'}
-                /> */}
 
                 <Box mt={3} textAlign="center">
                   <Typography variant="body2">
